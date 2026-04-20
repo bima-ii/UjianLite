@@ -544,7 +544,55 @@
         // ==========================================
         //  INIT & LOGIC: VIEW MULAI UJIAN
         // ==========================================
+        const SESSION_KEY = "UJS_SessionData";
+        
+        function saveSession() {
+            const sessionData = {
+                namaPeserta: state.namaPeserta,
+                nisPeserta: state.nisPeserta,
+                kelasPeserta: state.kelasPeserta,
+                waktuUjianMenit: state.waktuUjianMenit,
+                soal: state.soal,
+                jawaban: state.jawaban,
+                waktuSisaDetik: state.waktuSisaDetik
+            };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+        }
+        
+        function restoreSession() {
+            const dataStr = localStorage.getItem(SESSION_KEY);
+            if(dataStr) {
+                try {
+                    const data = JSON.parse(dataStr);
+                    state.namaPeserta = data.namaPeserta || "";
+                    state.nisPeserta = data.nisPeserta || "";
+                    state.kelasPeserta = data.kelasPeserta || "";
+                    state.waktuUjianMenit = data.waktuUjianMenit || 60;
+                    state.soal = data.soal || [];
+                    state.jawaban = data.jawaban || {};
+                    state.waktuSisaDetik = data.waktuSisaDetik || 0;
+                    return true;
+                } catch(e) {
+                    localStorage.removeItem(SESSION_KEY);
+                }
+            }
+            return false;
+        }
+
+        function clearSession() {
+            localStorage.removeItem(SESSION_KEY);
+        }
+
         window.onload = async () => {
+            if (restoreSession()) {
+                let txtKelas = state.kelasPeserta ? ` - ${state.kelasPeserta}` : ``;
+                document.getElementById('header-nama').textContent = `${state.namaPeserta}${txtKelas}`;
+                renderSoal();
+                switchView('view-ujian');
+                mulaiTimer();
+                return;
+            }
+
             // Fetch judul dan config awal saat page load, prevent click sebelum siap
             if (APPS_SCRIPT_URL === "MASUKKAN_URL_WEB_APP_DISINI" || SPREADSHEET_ID === "MASUKKAN_SPREADSHEET_ID_DISINI") {
                 document.getElementById('btn-mulai').textContent = "Peringatan: Konfigurasi Belum Diatur!";
@@ -609,6 +657,8 @@
             let txtKelas = state.kelasPeserta ? ` - ${state.kelasPeserta}` : ``;
             document.getElementById('header-nama').textContent = `${state.namaPeserta}${txtKelas}`;
             
+            saveSession();
+            
             renderSoal();
             switchView('view-ujian');
             mulaiTimer();
@@ -642,9 +692,12 @@
                         const isImg = isHttpUrl(valString);
                         const displayContent = isImg ? `<img src="${valString}" class="option-img" alt="Pilihan Gambar ${opt}">` : `<span>${valString}</span>`;
 
+                        const isChecked = state.jawaban[item.ID_Soal] === opt ? "checked" : "";
+                        const clsSelected = isChecked ? "selected" : "";
+
                         html += `
-                            <label class="option-label" id="label-${item.ID_Soal}-${opt}">
-                                <input type="radio" name="radio-${item.ID_Soal}" value="${opt}" onchange="pilihJawaban('${item.ID_Soal}', '${opt}')">
+                            <label class="option-label ${clsSelected}" id="label-${item.ID_Soal}-${opt}">
+                                <input type="radio" name="radio-${item.ID_Soal}" value="${opt}" onchange="pilihJawaban('${item.ID_Soal}', '${opt}')" ${isChecked}>
                                 <span class="fw-bold" style="margin-right: 12px; font-size: 1.1rem; color: var(--primary-green);">${opt}.</span> ${displayContent}
                             </label>
                         `;
@@ -665,16 +718,21 @@
             labels.forEach(l => l.classList.remove('selected'));
             
             document.getElementById(`label-${idSoal}-${opt}`).classList.add('selected');
+            saveSession();
         }
 
         function mulaiTimer() {
-            state.waktuSisaDetik = state.waktuUjianMenit * 60;
+            if (state.waktuSisaDetik <= 0) {
+                state.waktuSisaDetik = state.waktuUjianMenit * 60;
+            }
             updateTimerDisplay();
             
             state.timerInterval = setInterval(() => {
                 state.waktuSisaDetik--;
                 updateTimerDisplay();
                 
+                if (state.waktuSisaDetik % 5 === 0) saveSession();
+
                 if (state.waktuSisaDetik <= 0) {
                     clearInterval(state.timerInterval);
                     showToast("Waktu Ujian Berakhir! Data Anda disimpan otomatis.", "error");
@@ -725,6 +783,8 @@
                     jawaban: arrJawaban
                 });
 
+                clearSession();
+
                 // Tulis hasil ke layar
                 document.getElementById('hasil-nama').textContent = state.namaPeserta;
                 document.getElementById('hasil-nilai').textContent = hasil.nilai_akhir;
@@ -734,6 +794,9 @@
                 switchView('view-hasil'); // Sembunyikan lembar ujian seutuhnya
                 
             } catch (err) {
+                if (err.message && err.message.toLowerCase().includes("sudah mengikuti")) {
+                    clearSession();
+                }
                 // Biarkan mereka stuck atau refresh page tapi dengan alert besar di container soal jika error.
                 document.getElementById('soal-container').innerHTML = `
                     <div class="card text-center" style="border: 2px solid var(--warning-orange);">
