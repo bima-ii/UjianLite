@@ -291,6 +291,40 @@
         tr:hover td {
             background-color: #f1f3f4;
         }
+
+        /* Custom Konfirmasi Modal */
+        #custom-modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            backdrop-filter: blur(3px);
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -303,6 +337,18 @@
 
     <!-- Toast Alert Elegent Container -->
     <div id="toast-container"></div>
+
+    <!-- Custom Konfirmasi Modal -->
+    <div id="custom-modal" class="hidden">
+        <div class="modal-content">
+            <h3 style="color: var(--primary-green); margin-bottom: 10px;">Kirim Jawaban?</h3>
+            <p class="text-muted" style="font-size: 14.5px; margin-bottom: 10px;">Apakah Anda yakin dengan semua jawaban Anda? Tindakan ini tidak dapat dibatalkan.</p>
+            <div class="modal-buttons">
+                <button class="btn" style="background-color: #e0e0e0; color: var(--text-dark);" onclick="tutupModal()">Periksa Lagi</button>
+                <button class="btn btn-primary" onclick="prosesSubmitDariModal()">Ya, Selesai!</button>
+            </div>
+        </div>
+    </div>
 
     <!-- 1. View Mulai Ujian (Publik) -->
     <div id="view-mulai" class="container" style="padding-top: 8vh;">
@@ -651,10 +697,16 @@
         }
 
         function konfirmasiSubmit() {
-            // Pastikan user tidak klik ga sengaja
-            if (confirm("Apakah Anda sudah yakin dengan semua jawaban Anda? \nPenilaian akan langsung diproses.")) {
-                submitUjianForce();
-            }
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function tutupModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function prosesSubmitDariModal() {
+            tutupModal();
+            submitUjianForce();
         }
 
         async function submitUjianForce() {
