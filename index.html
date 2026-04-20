@@ -6,6 +6,8 @@
     <title>UjianSimple - KuliSheet</title>
     <!-- SheetJS via CDN untuk Export Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js via CDN untuk Grafik Dashboard -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -452,8 +454,13 @@
             
             <div id="admin-data-section" class="hidden">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
-                    <h3 style="font-size: 1.1rem;">Penilaian Peserta Ujian</h3>
+                    <h3 style="font-size: 1.1rem;">Statistik & Penilaian</h3>
                     <button class="btn btn-primary" style="width: auto; padding: 10px 20px; font-size: 14px;" onclick="exportExcel()">Export ke .xlsx</button>
+                </div>
+                
+                <!-- Chart Container -->
+                <div style="background: var(--card-bg); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
+                    <canvas id="grafik-nilai" style="width: 100%; max-height: 250px;"></canvas>
                 </div>
                 
                 <div class="table-responsive">
@@ -495,7 +502,8 @@
             jawaban: {}, // Menampung pilihan jawaban user: { "SOAL-1": "A" }
             timerInterval: null,
             waktuSisaDetik: 0,
-            adminData: []
+            adminData: [],
+            adminChart: null
         };
 
         // ==========================================
@@ -675,6 +683,15 @@
             }
             if (state.soal.length === 0) {
                 return showToast("Modul Soal kosong. Silakan refresh halaman.", "error");
+            }
+
+            try {
+                // Cek ke server apakah peserta sudah mengerjakan ujian hari ini
+                await apiCall("checkEligibility", { nama_peserta: nama, nis: nis });
+            } catch (err) {
+                // Jika error dilempar (termasuk validasi double), apiCall sudah menampilkan showToast.
+                // Kita blok proses berjalannya ujian di sini.
+                return;
             }
 
             state.namaPeserta = nama;
@@ -870,6 +887,7 @@
                 
                 state.adminData = dataAdmin;
                 renderAdminTable();
+                renderAdminChart(); // Panggil fungsi grafik
                 
                 document.getElementById('admin-login-section').classList.add('hidden');
                 document.getElementById('admin-data-section').classList.remove('hidden');
@@ -923,6 +941,74 @@
                 <td>${row['Total Benar']}/${row['Total Salah']}</td>
                `;
                tbody.appendChild(tr);
+            });
+        }
+
+        function renderAdminChart() {
+            if (state.adminData.length === 0) return;
+
+            // Distribusi Nilai (binning)
+            let distribusi = {
+                '0-20': 0,
+                '21-40': 0,
+                '41-60': 0,
+                '61-80': 0,
+                '81-100': 0
+            };
+
+            state.adminData.forEach(row => {
+                let nilai = parseFloat(row['Nilai Akhir']) || 0;
+                if (nilai <= 20) distribusi['0-20']++;
+                else if (nilai <= 40) distribusi['21-40']++;
+                else if (nilai <= 60) distribusi['41-60']++;
+                else if (nilai <= 80) distribusi['61-80']++;
+                else distribusi['81-100']++;
+            });
+
+            const ctx = document.getElementById('grafik-nilai').getContext('2d');
+            
+            // Hancurkan chart lama supaya kalau refresh tidak menumpuk
+            if (state.adminChart) {
+                state.adminChart.destroy();
+            }
+
+            state.adminChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(distribusi),
+                    datasets: [{
+                        label: 'Jumlah Peserta',
+                        data: Object.values(distribusi),
+                        backgroundColor: 'rgba(16, 185, 129, 0.4)',
+                        borderColor: '#059669',
+                        borderWidth: 2,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Distribusi Nilai Peserta',
+                            font: {
+                                size: 14,
+                                family: 'Outfit'
+                            },
+                            padding: { bottom: 15 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0 // Menghindari desimal (karena counting orang)
+                            }
+                        }
+                    }
+                }
             });
         }
 
