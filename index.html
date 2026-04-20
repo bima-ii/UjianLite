@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UjianSimple - KuliSheet</title>
+    <!-- SheetJS via CDN untuk Export Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            /* Tema UI KuliSheet */
+            --primary-green: #0F9D58;
+            --primary-green-hover: #0b8043;
+            --warning-orange: #F29900;
+            --warning-orange-hover: #e08c00;
+            --light-bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text-dark: #202124;
+            --text-muted: #5f6368;
+            --border-color: #dadce0;
+        }
+        
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            color: var(--text-dark);
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Utility */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .fw-bold { font-weight: bold; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mb-3 { margin-bottom: 1.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mt-3 { margin-top: 1.5rem; }
+        .p-2 { padding: 1rem; }
+        
+        /* Container Main (Mobile-First) */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Form & Inputs */
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: var(--primary-green);
+        }
+
+        /* Buttons */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-green);
+            color: white;
+            box-shadow: 0 4px 6px rgba(15, 157, 88, 0.2);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-green-hover);
+        }
+
+        .btn-warning {
+            background-color: var(--warning-orange);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: var(--warning-orange-hover);
+        }
+
+        .btn[disabled] {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+            color: var(--text-muted);
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-green);
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toast Alert Elegan */
+        #toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: #333;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: slideUp 0.3s ease-out forwards;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .toast.error { background: #d32f2f; }
+        .toast.success { background: var(--primary-green); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px) translateX(-50%); left:50%; }
+            to { opacity: 1; transform: translateY(0) translateX(-50%); left:50%; }
+        }
+
+        /* Header Lembar Ujian (Sticky) */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            background: var(--card-bg);
+            padding: 1rem 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--primary-green);
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Pertanyaan & Radio Options (Mobile Friendly Area Sentuh Besar) */
+        .soal-pertanyaan {
+            font-size: 1.1rem;
+            line-height: 1.5;
+            margin-bottom: 1.2rem;
+            color: var(--text-dark);
+        }
+
+        .option-label {
+            display: block;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+        }
+        
+        .option-label:hover {
+            background-color: var(--light-bg);
+        }
+
+        .option-label input[type="radio"] {
+            display: none;
+        }
+
+        .option-label.selected {
+            border-color: var(--primary-green);
+            background-color: rgba(15, 157, 88, 0.08); /* Efek warna pinggiran & isi */
+            transform: scale(1.02); /* Efek membesar saat dipilih */
+        }
+
+        .img-fluid {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            display: block;
+            margin: 12px auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .option-img {
+            max-height: 120px;
+            border-radius: 6px;
+            display: block;
+        }
+
+        /* View Hasil UI (Sertifikat Sederhana) */
+        .hasil-box {
+            background: var(--light-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .nilai-besar {
+            font-size: 5rem;
+            color: var(--primary-green);
+            margin: 1rem 0;
+            line-height: 1;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Admin Table */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            background-color: var(--light-bg);
+            font-weight: bold;
+            color: var(--text-muted);
+        }
+        tr:hover td {
+            background-color: #f1f3f4;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Overlay System -->
+    <div id="loading-overlay" class="hidden">
+        <div class="spinner mb-2"></div>
+        <div class="fw-bold text-muted" id="loading-text">Memproses...</div>
+    </div>
+
+    <!-- Toast Alert Elegent Container -->
+    <div id="toast-container"></div>
+
+    <!-- 1. View Mulai Ujian (Publik) -->
+    <div id="view-mulai" class="container" style="padding-top: 8vh;">
+        <div class="card text-center" style="padding: 2.5rem 1.5rem;">
+            <!-- Hidden trigger buat admin: klik teks "UjianSimple" 3x -->
+            <h1 id="app-logo" class="mb-1" style="color: var(--primary-green); font-size: 2rem;">UjianSimple</h1>
+            <p class="text-muted mb-3">Silakan lengkapi data Anda untuk memulai ujian.</p>
+            
+            <input type="text" id="input-nama" placeholder="Pilih/Cari Nama Anda..." autocomplete="off" class="mb-3" list="list-siswa" oninput="autoIsiSiswa()">
+            <datalist id="list-siswa"></datalist>
+
+            <input type="text" id="input-nis" placeholder="Nomor Induk Siswa (NIS)" autocomplete="off" class="mb-3" required>
+            <input type="text" id="input-kelas" placeholder="Kelas Siswa (Opsional)" autocomplete="off" class="mb-3">
+
+            <button id="btn-mulai" class="btn btn-primary" onclick="mulaiUjian()" disabled>Memuat Modul...</button>
+            <p class="text-muted mt-3" style="font-size: 12px;">Desain Khusus oleh <strong>KuliSheet v2</strong></p>
+        </div>
+    </div>
+
+    <!-- 2. View Lembar Ujian (Publik) -->
+    <div id="view-ujian" class="hidden">
+        <div class="container" style="padding: 0; position: relative;">
+            <div class="sticky-header">
+                <div>
+                    <div class="text-muted" style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Peserta Terdaftar</div>
+                    <div id="header-nama" class="fw-bold" style="font-size: 15px;">-</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-muted" style="font-size: 11px; text-transform: uppercase;">Waktu Sisa</div>
+                    <div id="header-timer" class="fw-bold" style="color: var(--warning-orange); font-size: 1.4rem;">--:--</div>
+                </div>
+            </div>
+            
+            <div id="soal-container" style="padding: 0 1rem;">
+                <!-- Soal di-render dynamic dengan DOM mapping -->
+            </div>
+
+            <div style="padding: 1rem;">
+                <button class="btn btn-warning mb-3" onclick="konfirmasiSubmit()">Selesaikan Ujian</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. View Hasil Ujian (Publik) - Konsep Kartu Sederhana -->
+    <div id="view-hasil" class="container hidden" style="padding-top: 8vh;">
+        <div class="card text-center" style="padding: 3rem 1.5rem;">
+            <h2 class="mb-1">Ujian Selesai!</h2>
+            <p class="text-muted mb-2">Terima kasih, <strong id="hasil-nama"></strong>.</p>
+            
+            <div class="hasil-box">
+                <div class="fw-bold" style="color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px;">Nilai Akhir Anda</div>
+                <div class="fw-bold nilai-besar" id="hasil-nilai">0</div>
+                
+                <div style="display: flex; justify-content: center; gap: 30px; margin-top: 1rem;">
+                    <div style="color: var(--primary-green);"><span class="fw-bold" style="font-size: 1.2rem;" id="hasil-benar">0</span><br><small>Jawaban Benar</small></div>
+                    <div style="color: #d32f2f;"><span class="fw-bold" style="font-size: 1.2rem;" id="hasil-salah">0</span><br><small>Jawaban Salah</small></div>
+                </div>
+            </div>
+            <p class="text-muted mt-3" style="font-size: 13px;">Anda dapat menutup halaman ini dengan aman.</p>
+        </div>
+    </div>
+
+    <!-- 4. View Admin Dashboard (Hidden) -->
+    <div id="view-admin" class="container hidden" style="padding-top: 5vh; max-width: 800px;">
+        <div class="card">
+            <h2 style="color: var(--primary-green);">Admin Dashboard</h2>
+            <p class="text-muted mb-3" style="font-size: 14px;">Area ini dilindungi dan hanya untuk pengelola ujian.</p>
+            
+            <div id="admin-login-section">
+                <input type="password" id="input-password" placeholder="Masukkan Password Admin">
+                <button class="btn btn-primary" onclick="loginAdmin()">Otorisasi Akses</button>
+                <div class="text-center mt-3"><button class="btn" style="background:transparent; color: var(--text-muted); padding:0; width:auto;" onclick="kembaliLewatViewAdmin()">Tutup Panel Ini</button></div>
+            </div>
+            
+            <div id="admin-data-section" class="hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
+                    <h3 style="font-size: 1.1rem;">Penilaian Peserta Ujian</h3>
+                    <button class="btn btn-primary" style="width: auto; padding: 10px 20px; font-size: 14px;" onclick="exportExcel()">Export ke .xlsx</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table id="tabel-hasil">
+                        <thead>
+                            <tr>
+                                <th>Waktu Submit</th>
+                                <th>Nama Peserta</th>
+                                <th>Nilai</th>
+                                <th>B</th>
+                                <th>S</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-warning mt-3" onclick="kembaliLewatViewAdmin()">Kunci & Keluar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        //  KONFIGURASI WAJIB - ISI SEBELUM DEPLOY!
+        // ==========================================
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwXR2ow162NNRdWawoEf5NHT3LTi8ynnmi7KnXYqRE5-G2F3MEbc9tXxaT8wCwrHvma/exec"; 
+        const SPREADSHEET_ID = "1i5DGN8GToufkcv54WQFj6dHxCIuS3nb4rHqFMfVmtbE";
+        
+        // ==========================================
+        //  STATE MANAGEMENT
+        // ==========================================
+        let state = {
+            namaPeserta: "",
+            nisPeserta: "",
+            kelasPeserta: "",
+            waktuUjianMenit: 60,
+            soal: [],
+            siswaFull: [],
+            jawaban: {}, // Menampung pilihan jawaban user: { "SOAL-1": "A" }
+            timerInterval: null,
+            waktuSisaDetik: 0,
+            adminData: []
+        };
+
+        // ==========================================
+        //  UTILITY FUNCTIONS (Toast, UI, Fetch)
+        // ==========================================
+        function showLoading(show, message = "Memproses...") {
+            document.getElementById('loading-text').textContent = message;
+            document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            // Remove previous toasts to avoid clustering in mobile
+            container.innerHTML = ''; 
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 3500);
+        }
+
+        function switchView(viewId) {
+            ['view-mulai', 'view-ujian', 'view-hasil', 'view-admin'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        function isHttpUrl(string) {
+            try {
+                new URL(string);
+                return string.startsWith('http');
+            } catch (err) {
+                return false;
+            }
+        }
+
+        async function apiCall(action, payload) {
+            showLoading(true, "Menghubungkan ke Server...");
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        spreadsheetId: SPREADSHEET_ID,
+                        action: action,
+                        ...payload
+                    })
+                });
+                
+                const result = await response.json();
+                showLoading(false);
+                
+                if (result.status === "error") {
+                    showToast(result.message, "error");
+                    throw new Error(result.message);
+                }
+                return result.data;
+            } catch (error) {
+                showLoading(false);
+                console.error("API Call Error:", error);
+                if(error.message === "Failed to fetch" || error.name === "TypeError") {
+                     showToast("Kesalahan Koneksi Server/CORS. Periksa kembali Web App URL.", "error");
+                }
+                throw error;
+            }
+        }
+
+        // ==========================================
+        //  INIT & LOGIC: VIEW MULAI UJIAN
+        // ==========================================
+        window.onload = async () => {
+            // Fetch judul dan config awal saat page load, prevent click sebelum siap
+            if (APPS_SCRIPT_URL === "MASUKKAN_URL_WEB_APP_DISINI" || SPREADSHEET_ID === "MASUKKAN_SPREADSHEET_ID_DISINI") {
+                document.getElementById('btn-mulai').textContent = "Peringatan: Konfigurasi Belum Diatur!";
+                return; // Berhenti jika blm disetting
+            }
+
+            try {
+                const initData = await apiCall("getInitData", {});
+                
+                const judul = initData.pengaturan.nama_ujian || "UjianSimple";
+                document.getElementById('app-logo').textContent = judul;
+                document.title = judul + " - KuliSheet";
+                
+                state.waktuUjianMenit = parseInt(initData.pengaturan.waktu) || 60;
+                state.soal = initData.soal;
+                
+                // Render list siswa jika ada dari backend
+                if (initData.siswa && initData.siswa.length > 0) {
+                    state.siswaFull = initData.siswa;
+                    const datalist = document.getElementById('list-siswa');
+                    datalist.innerHTML = '';
+                    initData.siswa.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.nama;
+                        datalist.appendChild(opt);
+                    });
+                    document.getElementById('input-nama').placeholder = "Ketik atau Pilih Nama Anda...";
+                }
+                
+                const btn = document.getElementById('btn-mulai');
+                btn.disabled = false;
+                btn.textContent = "Mulai Ujian Sekarang";
+            } catch (err) {
+                document.getElementById('btn-mulai').textContent = "Server Tidak Merespon";
+            }
+        };
+
+        function autoIsiSiswa() {
+            const val = document.getElementById('input-nama').value;
+            const found = state.siswaFull.find(s => s.nama === val);
+            if (found) {
+                document.getElementById('input-nis').value = found.nis || "";
+                document.getElementById('input-kelas').value = found.kelas || "";
+            }
+        }
+
+        async function mulaiUjian() {
+            const nama = document.getElementById('input-nama').value.trim();
+            const nis = document.getElementById('input-nis').value.trim();
+            const kelas = document.getElementById('input-kelas').value.trim();
+            if (!nama || !nis) {
+                return showToast("Mohon masukkan Nama dan NIS Anda terlebih dahulu!", "error");
+            }
+            if (state.soal.length === 0) {
+                return showToast("Modul Soal kosong. Silakan refresh halaman.", "error");
+            }
+
+            state.namaPeserta = nama;
+            state.nisPeserta = nis;
+            state.kelasPeserta = kelas;
+            
+            let txtKelas = state.kelasPeserta ? ` - ${state.kelasPeserta}` : ``;
+            document.getElementById('header-nama').textContent = `${state.namaPeserta}${txtKelas}`;
+            
+            renderSoal();
+            switchView('view-ujian');
+            mulaiTimer();
+        }
+
+        // ==========================================
+        //  LOGIC: LEMBAR UJIAN & TIMER
+        // ==========================================
+        function renderSoal() {
+            const container = document.getElementById('soal-container');
+            container.innerHTML = ''; // reset
+
+            state.soal.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `q-card-${item.ID_Soal}`;
+
+                // Render Elemen Pertanyaan Lengkap (Dengan Dukungan Gambar)
+                let html = `<div class="fw-bold soal-pertanyaan">${index + 1}. ${item.Pertanyaan}</div>`;
+                
+                if (item.URL_Gambar_Soal && typeof item.URL_Gambar_Soal === 'string' && item.URL_Gambar_Soal.trim() !== "") {
+                    html += `<img src="${item.URL_Gambar_Soal.trim()}" class="img-fluid" alt="Gambar Pendukung Soal">`;
+                }
+
+                const optionsArr = ['A', 'B', 'C', 'D'];
+                optionsArr.forEach(opt => {
+                    const opsiValue = item[`Opsi_${opt}`];
+                    
+                    if (opsiValue !== undefined && opsiValue !== null && opsiValue !== "") {
+                        const valString = opsiValue.toString().trim();
+                        const isImg = isHttpUrl(valString);
+                        const displayContent = isImg ? `<img src="${valString}" class="option-img" alt="Pilihan Gambar ${opt}">` : `<span>${valString}</span>`;
+
+                        html += `
+                            <label class="option-label" id="label-${item.ID_Soal}-${opt}">
+                                <input type="radio" name="radio-${item.ID_Soal}" value="${opt}" onchange="pilihJawaban('${item.ID_Soal}', '${opt}')">
+                                <span class="fw-bold" style="margin-right: 12px; font-size: 1.1rem; color: var(--primary-green);">${opt}.</span> ${displayContent}
+                            </label>
+                        `;
+                    }
+                });
+
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+        }
+
+        function pilihJawaban(idSoal, opt) {
+            state.jawaban[idSoal] = opt;
+            
+            // UI Toggle Selected State
+            const card = document.getElementById(`q-card-${idSoal}`);
+            const labels = card.querySelectorAll('.option-label');
+            labels.forEach(l => l.classList.remove('selected'));
+            
+            document.getElementById(`label-${idSoal}-${opt}`).classList.add('selected');
+        }
+
+        function mulaiTimer() {
+            state.waktuSisaDetik = state.waktuUjianMenit * 60;
+            updateTimerDisplay();
+            
+            state.timerInterval = setInterval(() => {
+                state.waktuSisaDetik--;
+                updateTimerDisplay();
+                
+                if (state.waktuSisaDetik <= 0) {
+                    clearInterval(state.timerInterval);
+                    showToast("Waktu Ujian Berakhir! Data Anda disimpan otomatis.", "error");
+                    // Auto submit saat waktu habis. Ignore error/konfirmasi
+                    submitUjianForce();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(state.waktuSisaDetik / 60).toString().padStart(2, '0');
+            const s = (state.waktuSisaDetik % 60).toString().padStart(2, '0');
+            const el = document.getElementById('header-timer');
+            el.textContent = `${m}:${s}`;
+            
+            // UX Timer Warna Merah Jika Sisa < 3 Menit
+            if(state.waktuSisaDetik < 180) {
+                el.style.color = '#d32f2f';
+            }
+        }
+
+        function konfirmasiSubmit() {
+            // Pastikan user tidak klik ga sengaja
+            if (confirm("Apakah Anda sudah yakin dengan semua jawaban Anda? \nPenilaian akan langsung diproses.")) {
+                submitUjianForce();
+            }
+        }
+
+        async function submitUjianForce() {
+            clearInterval(state.timerInterval);
+            
+            // Format state object jadi Array of Objects spesifik API Backend
+            const arrJawaban = Object.keys(state.jawaban).map(k => {
+                return { ID_Soal: k, Jawaban: state.jawaban[k] };
+            });
+
+            try {
+                const hasil = await apiCall("submitUjian", {
+                    nama_peserta: state.namaPeserta,
+                    nis: state.nisPeserta,
+                    kelas: state.kelasPeserta,
+                    jawaban: arrJawaban
+                });
+
+                // Tulis hasil ke layar
+                document.getElementById('hasil-nama').textContent = state.namaPeserta;
+                document.getElementById('hasil-nilai').textContent = hasil.nilai_akhir;
+                document.getElementById('hasil-benar').textContent = hasil.total_benar;
+                document.getElementById('hasil-salah').textContent = hasil.total_salah;
+                
+                switchView('view-hasil'); // Sembunyikan lembar ujian seutuhnya
+                
+            } catch (err) {
+                // Biarkan mereka stuck atau refresh page tapi dengan alert besar di container soal jika error.
+                document.getElementById('soal-container').innerHTML = `
+                    <div class="card text-center" style="border: 2px solid var(--warning-orange);">
+                        <h3 style="color: #d32f2f" class="mb-2">Gagal Menyerahkan Jawaban</h3>
+                        <p class="text-muted fw-bold">${err.message}</p>
+                        <p class="mt-3"><small>Sistem mencegah Anda untuk masuk karena riwayat pengerjaan.</small></p>
+                    </div>`;
+                document.querySelector('#view-ujian .btn-warning').classList.add('hidden');
+                document.getElementById('header-timer').textContent = "SELESAI";
+            }
+        }
+
+        // ==========================================
+        //  LOGIC: ROUTING & ADMIN PANEL
+        // ==========================================
+        let logoCountTap = 0;
+        let tapClearer = null;
+        
+        // Memunculkan Admin Form (3x Tap)
+        document.getElementById('app-logo').addEventListener('click', () => {
+            logoCountTap++;
+            if(logoCountTap >= 3) {
+                logoCountTap = 0;
+                switchView('view-admin');
+            }
+            clearTimeout(tapClearer);
+            tapClearer = setTimeout(() => { logoCountTap = 0; }, 1500);
+        });
+
+        async function loginAdmin() {
+            const pass = document.getElementById('input-password').value;
+            if(!pass) return showToast("Kata sandi diperlukan!", "error");
+
+            try {
+                const dataAdmin = await apiCall("getHasilAdmin", { password: pass });
+                
+                state.adminData = dataAdmin;
+                renderAdminTable();
+                
+                document.getElementById('admin-login-section').classList.add('hidden');
+                document.getElementById('admin-data-section').classList.remove('hidden');
+                showToast("Berhasil masuk.");
+            } catch (e) {
+                // Message handled by apiCall
+            }
+        }
+
+        function renderAdminTable() {
+            const thead = document.querySelector('#tabel-hasil thead');
+            const tbody = document.querySelector('#tabel-hasil tbody');
+            tbody.innerHTML = '';
+            
+            if(state.adminData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Belum ada peserta yang mengumpulkan.</td></tr>`;
+                return;
+            }
+
+            const hasNis = state.adminData[0]['NIS'] !== undefined;
+            const hasKelas = state.adminData[0]['Kelas'] !== undefined;
+
+            thead.innerHTML = `
+            <tr>
+                <th>Waktu</th>
+                ${hasNis ? '<th>NIS</th>' : ''}
+                <th>Nama Peserta</th>
+                ${hasKelas ? '<th>Kelas</th>' : ''}
+                <th>Nilai</th>
+                <th>B/S</th>
+            </tr>`;
+
+            state.adminData.forEach(row => {
+               // Parsing & Cleaning Text Date ISO to Local String
+               let waktuStr = row['Waktu_Submit'] || "";
+               if(waktuStr.indexOf('-') > -1) {
+                   const d = new Date(waktuStr);
+                   if (!isNaN(d)) {
+                       // Format simple dd/mm hh:mm
+                       waktuStr = d.toLocaleString('id-ID', {day: 'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+                   }
+               }
+
+               const tr = document.createElement('tr');
+               tr.innerHTML = `
+                <td><small>${waktuStr}</small></td>
+                ${hasNis ? `<td><small>${row['NIS']||'-'}</small></td>` : ''}
+                <td class="fw-bold">${row['Nama Peserta']}</td>
+                ${hasKelas ? `<td><small>${row['Kelas']||'-'}</small></td>` : ''}
+                <td class="fw-bold" style="color: var(--primary-green); font-size: 1.1rem;">${row['Nilai Akhir']}</td>
+                <td>${row['Total Benar']}/${row['Total Salah']}</td>
+               `;
+               tbody.appendChild(tr);
+            });
+        }
+
+        function exportExcel() {
+            if(!state.adminData || state.adminData.length === 0) {
+                return showToast("Tabel kosong, tidak dapat diekspor.", "error");
+            }
+            
+            try {
+                // SheetJS Logic to generate Excel Array
+                const worksheet = XLSX.utils.json_to_sheet(state.adminData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Hasil Ujian");
+                
+                // Trigger file download
+                XLSX.writeFile(workbook, `Ekspor_KuliSheet_${new Date().getTime()}.xlsx`);
+            } catch (err) {
+                showToast("Library SheetJS Error. Silakan periksa koneksi internet Anda untuk menggunakan fungsi Ekspor Excel.", "error");
+            }
+        }
+
+        function kembaliLewatViewAdmin() {
+            document.getElementById('input-password').value = "";
+            document.getElementById('admin-login-section').classList.remove('hidden');
+            document.getElementById('admin-data-section').classList.add('hidden');
+            state.adminData = [];
+            switchView('view-mulai');
+        }
+
+    </script>
+</body>
+</html>
