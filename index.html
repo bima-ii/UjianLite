@@ -782,6 +782,14 @@
         }
 
         function konfirmasiSubmit() {
+            const dijawab = Object.keys(state.jawaban).length;
+            const total = state.soal.length;
+            
+            if (dijawab < total) {
+                const sisa = total - dijawab;
+                return showToast(`Gagal: Masih ada ${sisa} soal yang belum Anda jawab!`, "error");
+            }
+            
             document.getElementById('custom-modal').classList.remove('hidden');
         }
 
